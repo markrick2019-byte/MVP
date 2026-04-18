@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <div id="head"></div>
+  <title>MVP</title>
+  
+</head>
+<body data-base-path=".">
+  <header><div id="header"></div></header>
+
+  <main class="catalog-page">
+    
+
+    <section id="section-vendidos" class="container-fluid" data-catalog-view="best-sellers" data-catalog-limit="3">
+      <div class="section-heading">
+        <div>
+          <p class="catalog-eyebrow">Vitrine principal</p>
+          <h2>Produtos Mais Vendidos</h2>
+        </div>
+        <a class="section-link" href="todos_produtos.html">Ver todos os produtos</a>
+      </div>
+      <div class="card-group"></div>
+      <p class="catalog-empty-message d-none">Ainda nao ha vendas registradas. Use o cadastro para adicionar produtos e registrar vendas.</p>
+    </section>
+
+    <div id="carouselExampleCaptions" class="carousel slide carousel-fade hero-carousel" data-bs-ride="carousel" data-bs-interval="7000">
+      <div class="carousel-indicators">
+        <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+        <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
+        <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="2" aria-label="Slide 3"></button>
+      </div>
+      <div class="carousel-inner">
+        <div class="carousel-item active" data-bs-interval="7000">
+          <a href="https://cn.org.br/portal/ressuscitou/" target="_blank" rel="noopener noreferrer">
+            <img src="img/Site do Ressuscitou.png" class="d-block w-100" alt="Site do Ressuscitou Oficial">
+            <div class="carousel-caption d-none d-md-block">
+              <h5>Site Oficial do Ressuscitou</h5>
+            </div>
+          </a>
+        </div>
+        <div class="carousel-item" data-bs-interval="7000">
+          <a href="https://cn.org.br/portal/" target="_blank" rel="noopener noreferrer">
+            <img src="img/Site do caminho.png" class="d-block w-100" alt="Site do Caminho">
+            <div class="carousel-caption d-none d-md-block">
+              <h5>Site do Caminho</h5>
+            </div>
+          </a>
+        </div>
+        <div class="carousel-item" data-bs-interval="7000">
+          <a href="https://cn.org.br/portal/noticias/" target="_blank" rel="noopener noreferrer">
+            <img src="img/Últimas notícias.png" class="d-block w-100" alt="Ultimas noticias do Caminho Neocatecumenal">
+            <div class="carousel-caption d-none d-md-block">
+              <h5>Saiba as ultimas noticias do Caminho Neocatecumenal</h5>
+            </div>
+          </a>
+        </div>
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+      </button>
+    </div>
+  </main>
+
+  <footer><div id="footer"></div></footer>
+  <button id="voltar-topo" type="button" class="btn btn-outline-primary" onclick="topo()">&uarr; Voltar ao topo</button>
+  <script src="js/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
+    crossorigin="anonymous"></script>
+</body>
+</html>
