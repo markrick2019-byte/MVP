@@ -26,7 +26,7 @@ const SESSION_STORAGE_KEY = "site_sessao_usuario_v1";
 const ADMIN_PRODUCT_PRIORITY = {
     byId: {
         "produto-seed-ressuscitou": 10,
-        "produto-seed-liturgia": 20,
+        "produto-seed-liturgias": 20,
         "produto-seed-vtb": 30,
         "produto-seed-cic": 40,
         "produto-seed-santos": 50
@@ -42,6 +42,13 @@ const ADMIN_PRODUCT_PRIORITY = {
     },
     defaultPriority: 9999
 };
+
+const HOME_PAGE_PRIORITY = [
+    "livro de cantos do ressuscitou",
+    "livro do esplendor",
+    "livro carmen hernandez",
+    "livro carmen"
+];
 
 const PRODUCT_SECTIONS = {
     ressuscitou: { label: "Ressuscitou", page: "ressuscitou.html" },
@@ -83,9 +90,9 @@ const DEFAULT_PRODUCTS = [
     },
     {
         id: "produto-seed-liturgia",
-        name: "Livro de Liturgia das Horas",
-        image: "img/Livro liturgia das Horas.png",
-        sectionKey: "liturgias",
+        name: "livro do Esplendor",
+        image: "img/Livro Esplendor da Liturgia Cristã.png",
+        sectionKey: "livro do Esplendor",
         price: 100,
         salesCount: 13,
         createdAt: "2026-01-12T10:00:00.000Z",
@@ -93,9 +100,9 @@ const DEFAULT_PRODUCTS = [
     },
     {
         id: "produto-seed-vtb",
-        name: "Livro VTB",
-        image: "img/Livro VTB.png",
-        sectionKey: "vtb",
+        name: "Livro Carmen",
+        image: "img/Livro Carmén Hernandez.png",
+        sectionKey: "livros_santos",
         price: 350,
         salesCount: 11,
         createdAt: "2026-01-14T10:00:00.000Z",
@@ -124,8 +131,10 @@ const DEFAULT_PRODUCTS = [
 ];
 
 document.addEventListener("DOMContentLoaded", function () {
-    initializeSite();
-});
+  initializeSite().then(() => {
+        initSpaRouter();
+    });
+  });
 
 async function initializeSite() {
     await loadHeader();
@@ -134,7 +143,6 @@ async function initializeSite() {
     renderAuthNav();
     applySupplierOnlyVisibility();
     setupMenuInteractions();
-    setupSearchForms();
     createCartDrawer();
     initializeCatalogFeatures();
     setupCatalogControls();
@@ -196,13 +204,29 @@ async function loadHead() {
         var html = await response.text();
         headContainer.innerHTML = html;
 
-        if (currentTitle && !headContainer.querySelector("title")) {
+            if (currentTitle && !headContainer.querySelector("title")) {
             var titleElement = document.createElement("title");
             titleElement.textContent = currentTitle;
             headContainer.appendChild(titleElement);
         }
 
-        updateRelativeAssets(headContainer);
+            // Ensure a <base> element exists so that relative links inside the injected header
+            // and footer resolve consistently when the page is inside subfolders.
+            try {
+                var existingBase = headContainer.querySelector('base') || document.head.querySelector('base');
+                var computedBaseHref = new URL(getBasePath().replace(/\/$/, '') + '/', window.location.href).href;
+                if (!existingBase) {
+                    var baseEl = document.createElement('base');
+                    baseEl.setAttribute('href', computedBaseHref);
+                    headContainer.appendChild(baseEl);
+                } else {
+                    existingBase.setAttribute('href', computedBaseHref);
+                }
+            } catch (e) {
+                // If URL computation fails for any reason, ignore and continue.
+            }
+
+            updateRelativeAssets(headContainer);
     } catch (error) {
         console.error("Não foi possível carregar o head:", error);
     }
@@ -226,26 +250,41 @@ async function loadFooter() {
 }
 
 function updateRelativeAssets(scope) {
-    var basePath = getBasePath();
-
+    // Normaliza links e assets para caminhos raiz-relativos, evitando
+    // duplicação quando a página atual está em subpastas.
     scope.querySelectorAll("[href]").forEach(function (element) {
         var href = element.getAttribute("href");
 
-        if (!href || href === "#") {
+        if (!href || href === "#" || /^(?:[a-z]+:|#|\/\/)/i.test(href)) {
             return;
         }
 
-        element.setAttribute("href", prefixRelativeUrl(basePath, href));
+        // Remove './' no início e barras duplicadas
+        var cleaned = href.replace(/^\.\//, '').replace(/^\/+/, '');
+
+        // Se o link já contém uma pasta (ex.: 'Pgs Livros/arquivo.html' ou 'img/logo.png'),
+        // usamos caminho absoluto a partir da raiz para evitar duplicação ao prefixar.
+        if (cleaned.indexOf('/') !== -1) {
+            element.setAttribute('href', '/' + cleaned);
+        } else {
+            element.setAttribute('href', prefixRelativeUrl(getBasePath(), cleaned));
+        }
     });
 
     scope.querySelectorAll("[src]").forEach(function (element) {
         var src = element.getAttribute("src");
 
-        if (!src) {
+        if (!src || /^(?:[a-z]+:|\/\/)/i.test(src)) {
             return;
         }
 
-        element.setAttribute("src", prefixRelativeUrl(basePath, src));
+        var cleanedSrc = src.replace(/^\.\//, '').replace(/^\/+/, '');
+        // Para assets (img/css/js) que normalmente estão em subpastas, use raiz absoluta
+        if (cleanedSrc.indexOf('/') !== -1) {
+            element.setAttribute('src', '/' + cleanedSrc);
+        } else {
+            element.setAttribute('src', prefixRelativeUrl(getBasePath(), cleanedSrc));
+        }
     });
 }
 
@@ -267,12 +306,48 @@ function setupMenuInteractions() {
     var toggler = document.querySelector(".custom-toggler");
 
     if (collapseEl && toggler) {
+        // Bootstrap Collapse instance
+        var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+        var menuStatePushed = false;
+
         collapseEl.addEventListener("show.bs.collapse", function () {
             toggler.classList.add("open");
+            try {
+                history.pushState({ menuOpen: true }, "");
+                menuStatePushed = true;
+            } catch (e) {}
         });
 
         collapseEl.addEventListener("hide.bs.collapse", function () {
             toggler.classList.remove("open");
+            if (menuStatePushed) {
+                try { history.replaceState(null, document.title); } catch (e) {}
+                menuStatePushed = false;
+            }
+        });
+
+        // Close when clicking outside the menu or toggler
+        document.addEventListener('click', function (e) {
+            if (collapseEl.classList.contains('show')) {
+                var target = e.target;
+                if (!collapseEl.contains(target) && !toggler.contains(target)) {
+                    bsCollapse.hide();
+                }
+            }
+        }, true);
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && collapseEl.classList.contains('show')) {
+                bsCollapse.hide();
+            }
+        });
+
+        // If user presses browser Back, close the menu instead of navigating immediately
+        window.addEventListener('popstate', function (e) {
+            if (collapseEl.classList.contains('show')) {
+                bsCollapse.hide();
+            }
         });
     }
 
@@ -398,7 +473,7 @@ function getProductsForView(viewType, sectionKey, limit) {
     var products = getStoredProducts().slice();
 
     if (viewType === "best-sellers") {
-        return products.sort(compareBySales).slice(0, limit || 3);
+        return products.sort(compareByHomePriority).slice(0, limit || 3);
     }
 
     if (viewType === "section") {
@@ -416,6 +491,28 @@ function compareBySales(productA, productB) {
     }
 
     return new Date(productB.createdAt) - new Date(productA.createdAt);
+}
+
+function getHomePagePriority(product) {
+    var normalizedName = normalizeSearchText(product && product.name);
+    var position = HOME_PAGE_PRIORITY.indexOf(normalizedName);
+
+    if (position !== -1) {
+        return position;
+    }
+
+    return HOME_PAGE_PRIORITY.length + 1;
+}
+
+function compareByHomePriority(productA, productB) {
+    var priorityA = getHomePagePriority(productA);
+    var priorityB = getHomePagePriority(productB);
+
+    if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+    }
+
+    return compareBySales(productA, productB);
 }
 
 function compareByDate(productA, productB) {
@@ -526,7 +623,7 @@ function buildProductCard(product) {
         '      <p class="product-section-label">' + escapeHtml(sectionConfig.label) + "</p>",
         '      <h5 class="card-title">' + escapeHtml(product.name) + "</h5>",
         '      <div class="product-meta-row">',
-        '        <p class="preço">' + formatCurrency(product.price) + "</p>",
+            '        <p class="preco">R$</p>',
         '        <span class="sales-pill">' + salesText + "</span>",
         "      </div>",
         '      <span class="btn">Ver produto</span>',
@@ -545,90 +642,7 @@ function escapeHtml(value) {
         .replace(/'/g, "&#39;");
 }
 
-function setupProductForm() {
-    // dentro de setupProductForm()
-    var imageInput = document.getElementById("product-image");
-    var thumbsContainer = document.getElementById("product-image-thumbs");
-    var uploadedImagesData = []; // array de dataURLs
 
-    function clearThumbs() {
-    if (thumbsContainer) thumbsContainer.innerHTML = "";
-    uploadedImagesData = [];
-    }
-
-    function addThumb(dataUrl, name, index) {
-    if (!thumbsContainer) return;
-    var wrapper = document.createElement("div");
-    wrapper.style.width = "84px";
-    wrapper.style.height = "84px";
-    wrapper.style.border = "1px solid #ddd";
-    wrapper.style.borderRadius = "8px";
-    wrapper.style.overflow = "hidden";
-    wrapper.style.display = "flex";
-    wrapper.style.alignItems = "center";
-    wrapper.style.justifyContent = "center";
-
-    var img = document.createElement("img");
-    img.src = dataUrl;
-    img.alt = name || ("Imagem " + (index+1));
-    img.style.maxWidth = "100%";
-    img.style.maxHeight = "100%";
-    wrapper.appendChild(img);
-
-    thumbsContainer.appendChild(wrapper);
-    }
-
-    if (imageInput) {
-    imageInput.addEventListener("change", async function (e) {
-        var files = Array.from(e.target.files || []);
-        clearThumbs();
-        var maxFiles = 6;
-        var allowed = files.slice(0, maxFiles);
-
-        for (var i = 0; i < allowed.length; i++) {
-        var f = allowed[i];
-        // opcional: limitar tamanho ~800KB
-        if (f.size && f.size > 800 * 1024) {
-            alert("A imagem '" + f.name + "' é muito grande. Tente reduzir (<800KB). Ela será ignorada.");
-            continue;
-        }
-        try {
-            var url = await readFileAsDataURL(f);
-            uploadedImagesData.push(url);
-            addThumb(url, f.name, uploadedImagesData.length - 1);
-        } catch (err) {
-            console.error("Erro lendo arquivo", f.name, err);
-        }
-        }
-    });
-    }
-
-    // no submit do formulário, adicionar images ao produto
-    form.addEventListener("submit", async function (event) {
-    event.preventDefault();
-    // ... validações já existentes ...
-
-    // antes de montar o objeto 'product', inclua:
-    var imagesToSave = uploadedImagesData.slice(); // cópia (pode estar vazia)
-
-    var product = {
-        id: "produto-" + Date.now(),
-        name: document.getElementById("product-name").value.trim(),
-        images: imagesToSave,
-        image: imagesToSave.length ? imagesToSave[0] : "img/logo.png",
-        sectionKey: document.getElementById("product-section").value,
-        price: parseFloat(document.getElementById("product-price").value || 0),
-        description: document.getElementById("product-description").value.trim(),
-        salesCount: 0,
-        createdAt: new Date().toISOString()
-    };
-
-    var products = getStoredProducts();
-    products.push(product);
-    saveProducts(products);
-    // restante do fluxo: reset form, mensagem, etc.
-    });
-}
 
 function setupSalesForm() {
     var form = document.getElementById("sales-registration-form");
@@ -842,17 +856,8 @@ function setupSearchForms() {
         });
     });
 }
-
-function redirectToCatalogSearch(term) {
-    var url = new URL(prefixRelativeUrl(getBasePath(), "todos_produtos.html"), window.location.href);
-    var normalizedTerm = String(term || "").trim();
-
-    if (normalizedTerm) {
-        url.searchParams.set("busca", normalizedTerm);
-    }
-
-    window.location.href = url.toString();
-}
+// search removed: header search forms were eliminated and search behavior
+// consolidated to the catalog page controls (catalog-search-input).
 
 function getCatalogSearchValue() {
     var params = new URLSearchParams(window.location.search);
@@ -1335,7 +1340,7 @@ function renderProductPage() {
         '    <p class="catalog-eyebrow">Produto cadastrado</p>',
         '    <h1>' + escapeHtml(product.name) + "</h1>",
         '    <p class="product-subtitle">' + escapeHtml(sectionConfig.label) + "</p>",
-        '    <div class="product-price">' + formatCurrency(product.price) + "</div>",
+        '    ',
         '    <form id="product-purchase-form" class="product-purchase-form">',
              buildProductOptionFields(optionProfile),
         '      <label class="form-field"><span>Quantidade</span><input type="number" id="product-quantity" min="1" step="1" value="1"></label>',
@@ -2114,14 +2119,14 @@ function renderProductPage() {
     '    <p class="catalog-eyebrow">Produto cadastrado</p>',
     '    <h1>' + escapeHtml(product.name) + "</h1>",
     '    <p class="product-subtitle">' + escapeHtml(sectionConfig.label) + "</p>",
-    '    <div class="product-price">' + formatCurrency(product.price) + "</div>",
+    '    ',
     '    <form id="product-purchase-form" class="product-purchase-form">',
          buildProductOptionFields(optionProfile),
     '      <label class="form-field"><span>Quantidade</span><input type="number" id="product-quantity" min="1" step="1" value="1"></label>',
     '      <button type="submit" class="product-add-button">Adicionar ao carrinho</button>',
     "    </form>",
     '    <div class="product-description"><h3>Sobre este produto</h3><p>' + escapeHtml(product.description) + "</p></div>",
-    '    <a class="section-link" href="' + prefixRelativeUrl(getBasePath(), sectionConfig.page) + '">Ver outros itens desta seÃ§Ã£o</a>',
+    '    <a class="section-link" href="' + prefixRelativeUrl(getBasePath(), sectionConfig.page) + '">Ver outros itens desta seção</a>',
     "  </div>",
     "</div>"
   ].join("");
@@ -2163,5 +2168,203 @@ function renderProductPage() {
         thumb.style.boxShadow = thumb === button ? "0 0 0 3px rgba(139, 94, 60, 0.12)" : "none";
       });
     });
+  });
+}
+
+// ========== SPA ROUTER ==========
+function initSpaRouter() {
+  // Intercepta cliques em links internos
+  document.body.addEventListener('click', function (e) {
+    const link = e.target.closest('a');
+    if (!link) return;
+
+    // Ignora links externos, âncoras, downloads, target _blank, ou que tenham data-spa-ignore
+    if (
+      link.host !== window.location.host ||
+      link.hasAttribute('download') ||
+      link.getAttribute('target') === '_blank' ||
+      link.hasAttribute('data-spa-ignore') ||
+      link.getAttribute('href').startsWith('#')
+    ) {
+      return;
+    }
+
+    // Ignora links que já são para a página atual (evita loop)
+    const currentPath = window.location.pathname + window.location.search;
+    const targetPath = link.pathname + link.search;
+    if (currentPath === targetPath) {
+      return;
+    }
+
+    e.preventDefault();
+    navigateTo(link.href);
+  });
+
+  // Lida com navegação pelo histórico (botões voltar/avançar)
+  window.addEventListener('popstate', function (e) {
+    const url = e.state?.url || window.location.href;
+    loadPageContent(url, false);
+  });
+}
+
+/**
+ * Navega para uma URL, atualizando o histórico e carregando o conteúdo.
+ */
+async function navigateTo(url) {
+  // Atualiza URL sem recarregar
+  history.pushState({ url }, '', url);
+  await loadPageContent(url, true);
+}
+
+/**
+ * Carrega o conteúdo da página via fetch e substitui #app-main.
+ * @param {string} url - URL completa ou relativa.
+ * @param {boolean} scrollToTop - Se deve rolar para o topo após carregar.
+ */
+async function loadPageContent(url, scrollToTop = true) {
+  try {
+    // Mostra indicador de carregamento (opcional)
+    const mainEl = document.getElementById('app-main');
+    if (!mainEl) {
+      console.error('Elemento #app-main não encontrado. Recarregando página...');
+      window.location.href = url;
+      return;
+    }
+
+    mainEl.style.opacity = '0.5';
+    mainEl.style.transition = 'opacity 0.15s';
+
+    const response = await fetch(url);
+    const html = await response.text();
+
+    // Parse do HTML recebido
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Extrai o novo conteúdo principal
+    const newMain = doc.getElementById('app-main');
+    if (!newMain) {
+      throw new Error('Página destino não possui #app-main');
+    }
+
+    // Substitui o conteúdo
+    mainEl.innerHTML = newMain.innerHTML;
+    mainEl.style.opacity = '1';
+
+    // Atualiza o título da página
+    document.title = doc.title;
+
+    // Reexecuta funções de inicialização da nova página
+    await initializePageFeatures(doc);
+
+    // Rola para o topo se necessário
+    if (scrollToTop) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    // Atualiza links ativos no menu (opcional)
+    highlightActiveNavLink(url);
+  } catch (error) {
+    console.error('Erro na navegação SPA:', error);
+    // Fallback: recarrega a página normalmente
+    window.location.href = url;
+  }
+}
+
+/**
+ * Executa as inicializações necessárias após carregar uma nova página.
+ * Baseia-se no conteúdo do documento parseado para detectar quais módulos ativar.
+ */
+async function initializePageFeatures(doc) {
+  // Verifica se há elementos que precisam de inicialização
+  const hasCatalog = doc.querySelector('[data-catalog-view]');
+  const hasProductPage = doc.getElementById('product-detail-page');
+  const hasCartPage = doc.getElementById('cart-page');
+  const hasLoginForm = doc.getElementById('login-form');
+  const hasRegistrationForm = doc.getElementById('registration-form');
+  const hasProductAdmin = doc.querySelector('.product-admin-grid');
+  const hasSalesForm = doc.getElementById('sales-registration-form');
+
+  // Reexecuta funções específicas do script.js
+  if (hasCatalog) {
+    renderCatalogViews();
+  }
+  if (hasProductPage) {
+    renderProductPage();
+  }
+  if (hasCartPage) {
+    renderCartPage();
+  }
+  if (hasLoginForm || hasRegistrationForm) {
+    setupAuthForms();
+  }
+  if (hasProductAdmin) {
+    enforceProductAccess();
+    renderAdminProductList();
+    populateSalesProducts();
+    setupProductForm();      
+    setupSalesForm();
+  }
+  if (hasSalesForm) {
+    populateSalesProducts();
+  }
+
+  // Atualiza contagem do carrinho
+  updateCartCount();
+
+  // Reaplica visibilidade de elementos para fornecedores
+  applySupplierOnlyVisibility();
+
+  // Reativa submenus e outros comportamentos de UI
+  setupMenuInteractions();
+
+  setupCatalogControls();
+
+  // Se houver necessidade de reexecutar scripts jQuery (ex.: slideToggle)
+  if (typeof $ !== 'undefined' && $('#botao-cadastrar').length) {
+    // Reaplica o evento de toggle do formulário de cadastro
+    $('#botao-cadastrar').off('click').on('click', function () {
+      $("#form-cadastrar").slideToggle("slow");
+      $("#section-login").slideToggle("slow");
+      $("#botao-cadastrar").hide();
+    });
+    }
+
+    // Fallback nativo caso jQuery não esteja presente ou o binding anterior não tenha ocorrido
+    try {
+        var nativeBtn = document.getElementById('botao-cadastrar');
+        if (nativeBtn && !nativeBtn.dataset.nativeToggleBound) {
+            nativeBtn.addEventListener('click', function (e) {
+                var form = document.getElementById('form-cadastrar');
+                var login = document.getElementById('section-login');
+                if (!form || !login) return;
+                // Toggle display with simple animation via max-height class if desired; use instant fallback
+                if (getComputedStyle(form).display === 'none') {
+                    form.style.display = 'block';
+                    login.style.display = 'none';
+                } else {
+                    form.style.display = 'none';
+                    login.style.display = 'block';
+                }
+                nativeBtn.style.display = 'none';
+            });
+            nativeBtn.dataset.nativeToggleBound = '1';
+        }
+    } catch (e) {}
+  }
+
+
+/**
+ * Destaca o link do menu ativo baseado na URL atual.
+ */
+function highlightActiveNavLink(url) {
+  const path = new URL(url, window.location.origin).pathname;
+  document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+    const href = link.getAttribute('href');
+    if (href && path.endsWith(href.replace(/^\.\//, ''))) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
   });
 }

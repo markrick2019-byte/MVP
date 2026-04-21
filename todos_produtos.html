@@ -7,24 +7,25 @@
 <body data-base-path=".">
   <header><div id="header"></div></header>
 
-  <main class="catalog-page">
+  <main id="app-main" class="catalog-page">
+    
     <section class="catalog-hero container-fluid">
-      <p class="catalog-eyebrow">Catalogo completo</p>
+      <p class="catalog-eyebrow">Catálogo completo</p>
       <h1>Todos os Produtos</h1>
-      <p>Esta pagina reune os produtos iniciais do site e todos os itens cadastrados pelo formulario.</p>
+      <p>Esta página reúne os produtos iniciais do site e todos os itens cadastrados pelo formulário.</p>
     </section>
 
     <section id="section-vendidos" class="container-fluid" data-catalog-view="all">
       <div class="section-heading">
         <div>
-          <p class="catalog-eyebrow">Catalogo geral</p>
+          <p class="catalog-eyebrow">Catálogo geral</p>
           <h2>Todos os produtos cadastrados</h2>
         </div>
       </div>
 
       <div class="catalog-toolbar">
         <label class="catalog-search-field" for="catalog-search-input">
-          <span>Buscar no catalogo</span>
+          <span>Buscar no catálogo</span>
           <input type="search" id="catalog-search-input" placeholder="Digite o nome, categoria ou descrição do produto">
         </label>
 
@@ -33,18 +34,19 @@
           <select id="catalog-sort">
             <option value="destaque">Em destaque</option>
             <option value="mais-vendidos">Mais vendidos</option>
-            <option value="az">Ordem alfabetica, A-Z</option>
-            <option value="za">Ordem alfabetica, Z-A</option>
-            <option value="menor-preco">Preco, do menor ao maior</option>
-            <option value="maior-preco">Preco, do maior ao menor</option>
+            <option value="az">Ordem alfabética, A-Z</option>
+            <option value="za">Ordem alfabética, Z-A</option>
+            <option value="menor-preco">Preço, do menor ao maior</option>
+            <option value="maior-preco">Preço, do maior ao menor</option>
           </select>
         </label>
       </div>
 
       <p id="catalog-result-count" class="catalog-result-count"></p>
       <div class="card-group"></div>
-      <p class="catalog-empty-message d-none">Nenhum produto encontrado. Ajuste a busca ou a ordenacao para tentar novamente.</p>
+      <p class="catalog-empty-message d-none">Nenhum produto encontrado. Ajuste a busca ou a ordenação para tentar novamente.</p>
     </section>
+    
   </main>
 
   <footer><div id="footer"></div></footer>
